@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: portfolio_app
+    volumes:
+      - ./backend:/var/www/html
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portfolio.rule=Host(`chat.vanndavidteng.com`)"
+      - "traefik.http.routers.portfolio.entrypoints=web,websecure"
+      - "traefik.http.routers.portfolio.tls=true"
+      - "traefik.http.routers.portfolio.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portfolio.loadbalancer.server.port=8000"
+    networks:
+      - web
+    expose:
+      - "8000"
+    command: php artisan serve --host=0.0.0.0 --port=8000
+
+networks:
+  web:
+    external: true
