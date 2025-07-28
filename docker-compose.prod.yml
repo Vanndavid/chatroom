@@ -24,11 +24,11 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portfolio.rule=Host(`chat.vanndavidteng.com`)"
-      - "traefik.http.routers.portfolio.entrypoints=web,websecure"
-      - "traefik.http.routers.portfolio.tls=true"
-      - "traefik.http.routers.portfolio.tls.certresolver=letsencrypt"
-      - "traefik.http.services.portfolio.loadbalancer.server.port=8000"
+      - "traefik.http.routers.chat.rule=Host(`chat.vanndavidteng.com`)"
+      - "traefik.http.routers.chat.entrypoints=web,websecure"
+      - "traefik.http.routers.chat.tls=true"
+      - "traefik.http.routers.chat.tls.certresolver=letsencrypt"
+      - "traefik.http.services.chat.loadbalancer.server.port=8000"
     networks:
       - web
     depends_on:
