@@ -13,7 +13,7 @@ services:
     depends_on:
       - redis
     # Optional: automatically start Reverb server (not recommended if you're still debugging)
-    command: php artisan reverb:start
+    command: php-fpm  
     user: "${UID:-1000}:1000"
 
   frontend:
@@ -31,7 +31,21 @@ services:
       - "traefik.http.services.chat-frontend.loadbalancer.server.port=80"
     networks:
       - web
-
+  reverb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat_reverb
+    volumes:
+      - ./backend:/var/www/html
+    command: php artisan reverb:start --host=0.0.0.0 --port=6001
+    ports:
+      - "6001:6001"
+    networks:
+      - web
+    depends_on:
+      - redis
+    user: "${UID:-1000}:1000"
   nginx:
     image: nginx:alpine
     container_name: chat_nginx
