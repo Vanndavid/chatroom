@@ -16,6 +16,22 @@ services:
     command: php artisan reverb:start
     user: "${UID:-1000}:1000"
 
+  frontend:
+    image: nginx:alpine
+    container_name: chat_frontend
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./frontend.nginx.conf:/etc/nginx/conf.d/default.conf
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chat-frontend.rule=Host(`chat.vanndavidteng.com`) && PathPrefix(`/`)"
+      - "traefik.http.routers.chat-frontend.entrypoints=web,websecure"
+      - "traefik.http.routers.chat-frontend.tls=true"
+      - "traefik.http.routers.chat-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.chat-frontend.loadbalancer.server.port=80"
+    networks:
+      - web
+
   nginx:
     image: nginx:alpine
     container_name: chat_nginx
@@ -24,7 +40,7 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.chat.rule=Host(`chat.vanndavidteng.com`)"
+      - "traefik.http.routers.chat.rule=Host(`chat.vanndavidteng.com`) && PathPrefix(`/api`)"
       - "traefik.http.routers.chat.entrypoints=web,websecure"
       - "traefik.http.routers.chat.tls=true"
       - "traefik.http.routers.chat.tls.certresolver=letsencrypt"
