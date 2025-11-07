@@ -10,10 +10,11 @@ services:
       - web
     depends_on:
       - redis
+    # Optional: automatically start Reverb server (not recommended if you're still debugging)
     command: php-fpm  
     user: "${UID:-1000}:1000"
     expose:
-  -   "9000"  # Needed for Nginx to fastcgi_pass app:9000
+      - "9000"  # Needed for Nginx to fastcgi_pass app:9000
 
   frontend:
     image: nginx:alpine
