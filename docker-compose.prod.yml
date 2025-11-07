@@ -6,6 +6,15 @@ services:
     container_name: chat_app
     volumes:
       - ./backend:/var/www/html
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        # Change ownership for storage, cache, and the database file/directory
+        chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
+        
+        # Ensure write permissions (775) for the directories/files
+        chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
     networks:
       - web
     depends_on:
