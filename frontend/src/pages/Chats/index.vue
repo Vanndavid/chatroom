@@ -33,18 +33,18 @@
         />
       </v-col>
     </v-row>
-     <div class="messages flex-grow-1 min-h-0">
-      <MessageList :messages="store.messages" :loading="store.loading" />
-    </div>
+      <div ref="scroller" class="messages flex-grow-1 min-h-0">
+        <MessageList :messages="store.messages" :loading="store.loading" />
+      </div>
 
-    <div class="input-box">
-      <MessageInput @send="handleSend" />
-    </div>
+      <div class="input-box">
+        <MessageInput @send="handleSend" />
+      </div>
   </v-container>
 </template>
 
 <script setup>
-import { inject, ref, onMounted, onUnmounted } from 'vue';
+import { inject, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useChatStore } from './store';
 import { fetchMessages, sendMessage } from './api';
@@ -78,7 +78,26 @@ function copyLink() {
 }
 
 let leave;
+const scroller = ref(null);
+
+function isNearBottom(el, threshold = 80) {
+  return el.scrollHeight - (el.scrollTop + el.clientHeight) <= threshold;
+}
+async function scrollToBottom(force = false) {
+  const el = scroller.value;
+  if (!el) return;
+
+  // Only pin to bottom if user is already near bottom, unless force = true
+  if (force || isNearBottom(el)) {
+    console.log(scroller);
+    await nextTick();
+    console.log('scrollTop before:', el.scrollTop, 'scrollHeight:', el.scrollHeight);
+    el.scrollTop = el.scrollHeight;
+    console.log('scrollTop after:', el.parentNode.scrollTop, 'scrollHeight:', el.scrollHeight);
+  }
+}
 onMounted(async () => {
+  scrollToBottom(true);
   try {
     store.setLoading(true);
     store.setMessages(await fetchMessages(roomCode));
@@ -97,7 +116,13 @@ onMounted(async () => {
     });
   });
 });
-
+// When messages change, try to keep pinned to bottom
+watch(
+  () => store.messages.length,
+  async () => {
+    await scrollToBottom(true);
+  }
+);
 onUnmounted(() => leave?.());
 
 async function handleSend(text) {
