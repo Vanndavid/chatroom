@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scrollable Page With Bottom Input</title>
+  <style>
+    body, html {
+  margin: 0;
+  height: 100%;
+  font-family: sans-serif;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f3f3f3;
+}
+
+.input-box {
+  display: flex;
+  border-top: 1px solid #ccc;
+}
+
+.input-box input {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  outline: none;
+}
+
+.input-box button {
+  padding: 10px 15px;
+  border: none;
+  background: #007bff;
+  color: white;
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div>
+        <h2>Chat Application</h2>
+         <h2>Chat Application</h2>
+          <h2>Chat Application</h2>
+    </div>
+    <div class="messages">
+      <p>Message 1</p>
+      <p>Message 2</p>
+      <p>Message 3</p>
+      <p>Message 4</p>
+      <p>Message 5</p>
+      <p>Message 6</p>
+      <p>Message 7</p>
+      <p>Message 8</p>
+      <p>Message 9</p>
+      <p>Message 10</p>
+      <p>Message 11</p>
+      <p>Message 12</p>
+    </div>
+
+    <div class="input-box">
+      <input type="text" placeholder="Type a message..." />
+      <button>Send</button>
+    </div>
+  </div>
+</body>
+</html>

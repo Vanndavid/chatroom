@@ -58,16 +58,16 @@ onMounted(() => {
 watch(
   () => props.messages.length,
   async () => {
-    await scrollToBottom(false);
+    await scrollToBottom(true);
   }
 );
 </script>
 
 <style scoped>
+
 .messages-scroll {
-  height: 60vh;
+  height: 100%;         /* let parent define height */
   overflow-y: auto;
-  /* smooth if you like */
   scroll-behavior: smooth;
 }
 </style>
