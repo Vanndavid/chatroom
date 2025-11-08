@@ -1,5 +1,5 @@
 <template>
-  <v-container class="py-6" max-width="1200">
+  <v-container class="page py-6 d-flex flex-column" fluid>
     <v-row class="mb-4" align="center">
       <v-col cols="12" sm="8">
         <v-text-field
@@ -33,8 +33,13 @@
         />
       </v-col>
     </v-row>
-    <MessageList :messages="store.messages" :loading="store.loading" />
-    <MessageInput class="mt-4" @send="handleSend" />
+     <div class="messages flex-grow-1 min-h-0">
+      <MessageList :messages="store.messages" :loading="store.loading" />
+    </div>
+
+    <div class="input-box">
+      <MessageInput @send="handleSend" />
+    </div>
   </v-container>
 </template>
 
@@ -109,3 +114,15 @@ async function handleSend(text) {
   }
 }
 </script>
+<style scoped>
+ .page {
+   height: calc(100vh - 64px); /* full height minus top app bar (64px) */
+ }
+ .messages {
+   overflow-y: auto;
+ }
+ .input-box {
+   border-top: 1px solid #ddd;
+   padding-top: 8px;
+ }
+</style>
