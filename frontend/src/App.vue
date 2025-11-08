@@ -1,8 +1,7 @@
 <template>
   <v-app>
     <v-app-bar flat color="primary">
-      <v-toolbar-title class="text-white">Vue Chatroom</v-toolbar-title>
-      <v-btn icon="mdi-chat" class="text-white" to="/">Chats</v-btn>
+      <v-btn prepend-icon="mdi-chat" class="text-white" to="/" variant="text">Home</v-btn>
     </v-app-bar>
 
     <v-main>

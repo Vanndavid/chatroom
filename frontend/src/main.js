@@ -6,6 +6,7 @@ import router from './router';
 import vuetify from './plugins/vuetify';
 import './plugins/axios';
 import './plugins/echo';
+import '@mdi/font/css/materialdesignicons.css';
 createApp(App)
   .use(createPinia())
   .use(router)

@@ -11,7 +11,26 @@
         />
       </v-col>
       <v-col cols="12" sm="4" class="text-sm-right">
+        
         <v-chip color="primary" class="ma-2">Room: {{ roomCode }}</v-chip>
+           <!-- Copy code button -->
+        <v-btn
+        icon="mdi-content-copy"
+        size="small"
+        variant="text"
+        class="ml-2"
+        @click="copyCode"
+        :title="`Copy code: ${roomCode}`"
+        />
+
+        <!-- Copy full link button -->
+        <v-btn
+        icon="mdi-link-variant"
+        size="small"
+        variant="text"
+        @click="copyLink"
+        :title="`Copy link: ${fullLink}`"
+        />
       </v-col>
     </v-row>
     <MessageList :messages="store.messages" :loading="store.loading" />
@@ -38,6 +57,19 @@ function toast(msg) {
   if (!snackbar) return;
   snackbar.message = msg;
   snackbar.show = true;
+}
+const fullLink = `${window.location.origin}/chat/${roomCode}`;
+
+function copyCode() {
+  navigator.clipboard.writeText(roomCode)
+    .then(() => toast(`Copied code: ${roomCode}`))
+    .catch(() => toast('Failed to copy code'));
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(fullLink)
+    .then(() => toast(`Copied link:\n${fullLink}`))
+    .catch(() => toast('Failed to copy link'));
 }
 
 let leave;
@@ -68,7 +100,7 @@ async function handleSend(text) {
   const payload = { sender: store.sender, message: text.trim() };
 
   // Optimistic insert
-  store.pushMessage({ id: `temp-${Date.now()}`, ...payload, created_at: new Date().toISOString() });
+//   store.pushMessage({ id: `temp-${Date.now()}`, ...payload, created_at: new Date().toISOString() });
 
   try {
     await sendMessage(roomCode, payload);
