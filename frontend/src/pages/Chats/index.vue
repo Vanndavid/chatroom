@@ -7,7 +7,7 @@
           label="Display name"
           variant="outlined"
           density="comfortable"
-          @change="store.setSender(senderName)"
+          @change="store.setSender(senderName?.trim() || store.sender)"
         />
       </v-col>
       <v-col cols="12" sm="4" class="text-sm-right">
@@ -38,7 +38,7 @@
       </div>
 
       <div class="input-box">
-        <MessageInput @send="handleSend" />
+        <MessageInput :sending="sending" @send="handleSend" />
       </div>
   </v-container>
 </template>
@@ -56,6 +56,7 @@ const route = useRoute();
 const roomCode = route.params.roomCode;
 const store = useChatStore();
 const senderName = ref(store.sender);
+const sending = ref(false);
 const snackbar = inject('snackbar');
 
 function toast(msg) {
@@ -89,11 +90,8 @@ async function scrollToBottom(force = false) {
 
   // Only pin to bottom if user is already near bottom, unless force = true
   if (force || isNearBottom(el)) {
-    console.log(scroller);
     await nextTick();
-    console.log('scrollTop before:', el.scrollTop, 'scrollHeight:', el.scrollHeight);
     el.scrollTop = el.scrollHeight;
-    console.log('scrollTop after:', el.parentNode.scrollTop, 'scrollHeight:', el.scrollHeight);
   }
 }
 onMounted(async () => {
@@ -127,15 +125,17 @@ onUnmounted(() => leave?.());
 
 async function handleSend(text) {
   if (!text?.trim()) return;
+  if (sending.value) return;
+
   const payload = { sender: store.sender, message: text.trim() };
 
-  // Optimistic insert
-//   store.pushMessage({ id: `temp-${Date.now()}`, ...payload, created_at: new Date().toISOString() });
-
   try {
+    sending.value = true;
     await sendMessage(roomCode, payload);
   } catch (e) {
     toast('Failed to send message.');
+  } finally {
+    sending.value = false;
   }
 }
 </script>
