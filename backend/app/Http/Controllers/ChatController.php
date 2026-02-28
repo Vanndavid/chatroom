@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageSent;
 use App\Models\Chat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use App\Events\MessageSent; 
 
 class ChatController extends Controller
 {
@@ -16,7 +16,7 @@ class ChatController extends Controller
         return response()->json($chats, 201);
     }
 
-     public function create(Request $request)
+    public function create(Request $request)
     {
         $chat = Chat::create([
             'code' => strtoupper(Str::random(6)),
@@ -29,7 +29,9 @@ class ChatController extends Controller
     public function show($code)
     {
         $chat = Chat::where('code', $code)->firstOrFail();
-        $chat->load('messages');
+        $chat->load(['messages' => function ($query) {
+            $query->oldest();
+        }]);
 
         return response()->json($chat);
     }
@@ -38,12 +40,29 @@ class ChatController extends Controller
     {
         $chat = Chat::where('code', $code)->firstOrFail();
 
-        $message = $chat->messages()->create([
-            'sender' => $request->input('sender'),
-            'message' => $request->input('message'),
+        $validated = $request->validate([
+            'sender' => ['nullable', 'string', 'max:80'],
+            'message' => ['nullable', 'string', 'max:5000', 'required_without:file'],
+            'file' => ['nullable', 'file', 'max:10240', 'required_without:message'],
         ]);
 
+        $payload = [
+            'sender' => $validated['sender'] ?? null,
+            'message' => isset($validated['message']) ? trim($validated['message']) : null,
+        ];
+
+        if ($request->hasFile('file')) {
+            $storedPath = $request->file('file')->store('chat_uploads', 'public');
+            $payload['attachment_path'] = $storedPath;
+            $payload['attachment_name'] = $request->file('file')->getClientOriginalName();
+            $payload['attachment_mime'] = $request->file('file')->getClientMimeType();
+            $payload['attachment_size'] = $request->file('file')->getSize();
+        }
+
+        $message = $chat->messages()->create($payload);
+
         event(new MessageSent($message, $chat->code));
+
         return response()->json($message, 201);
     }
 }
