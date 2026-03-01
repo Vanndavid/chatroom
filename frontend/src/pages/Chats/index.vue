@@ -11,40 +11,53 @@
         />
       </v-col>
       <v-col cols="12" sm="4" class="text-sm-right">
-        
         <v-chip color="primary" class="ma-2">Room: {{ roomCode }}</v-chip>
-           <!-- Copy code button -->
         <v-btn
-        icon="mdi-content-copy"
-        size="small"
-        variant="text"
-        class="ml-2"
-        @click="copyCode"
-        :title="`Copy code: ${roomCode}`"
+          icon="mdi-content-copy"
+          size="small"
+          variant="text"
+          class="ml-2"
+          @click="copyCode"
+          :title="`Copy code: ${roomCode}`"
         />
-
-        <!-- Copy full link button -->
         <v-btn
-        icon="mdi-link-variant"
-        size="small"
-        variant="text"
-        @click="copyLink"
-        :title="`Copy link: ${fullLink}`"
+          icon="mdi-link-variant"
+          size="small"
+          variant="text"
+          @click="copyLink"
+          :title="`Copy link: ${fullLink}`"
         />
       </v-col>
     </v-row>
-      <div ref="scroller" class="messages flex-grow-1 min-h-0">
-        <MessageList :messages="store.messages" :loading="store.loading" />
-      </div>
 
-      <div class="input-box">
-        <MessageInput :sending="sending" @send="handleSend" />
-      </div>
+    <v-row class="mb-2" align="center">
+      <v-col cols="12" sm="8">
+        <v-text-field
+          v-model="searchQuery"
+          label="Search messages"
+          variant="outlined"
+          density="comfortable"
+          prepend-inner-icon="mdi-magnify"
+          clearable
+        />
+      </v-col>
+      <v-col cols="12" sm="4" class="text-sm-right">
+        <small class="text-medium-emphasis">Showing {{ filteredMessages.length }} / {{ store.messages.length }}</small>
+      </v-col>
+    </v-row>
+
+    <div ref="scroller" class="messages flex-grow-1 min-h-0">
+      <MessageList :messages="filteredMessages" :loading="store.loading" :search-query="searchQuery" />
+    </div>
+
+    <div class="input-box">
+      <MessageInput :sending="sending" @send="handleSend" />
+    </div>
   </v-container>
 </template>
 
 <script setup>
-import { inject, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { computed, inject, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useChatStore } from './store';
 import { fetchMessages, sendMessage } from './api';
@@ -57,13 +70,27 @@ const roomCode = route.params.roomCode;
 const store = useChatStore();
 const senderName = ref(store.sender);
 const sending = ref(false);
+const searchQuery = ref('');
 const snackbar = inject('snackbar');
+
+const filteredMessages = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return store.messages;
+
+  return store.messages.filter((m) => {
+    const messageText = String(m?.message || '').toLowerCase();
+    const senderText = String(m?.sender || '').toLowerCase();
+    const fileText = String(m?.attachment_name || '').toLowerCase();
+    return messageText.includes(query) || senderText.includes(query) || fileText.includes(query);
+  });
+});
 
 function toast(msg) {
   if (!snackbar) return;
   snackbar.message = msg;
   snackbar.show = true;
 }
+
 const fullLink = `${window.location.origin}/chat/${roomCode}`;
 
 function copyCode() {
@@ -84,16 +111,17 @@ const scroller = ref(null);
 function isNearBottom(el, threshold = 80) {
   return el.scrollHeight - (el.scrollTop + el.clientHeight) <= threshold;
 }
+
 async function scrollToBottom(force = false) {
   const el = scroller.value;
   if (!el) return;
 
-  // Only pin to bottom if user is already near bottom, unless force = true
   if (force || isNearBottom(el)) {
     await nextTick();
     el.scrollTop = el.scrollHeight;
   }
 }
+
 onMounted(async () => {
   scrollToBottom(true);
   try {
@@ -118,13 +146,14 @@ onMounted(async () => {
     });
   });
 });
-// When messages change, try to keep pinned to bottom
+
 watch(
   () => store.messages.length,
   async () => {
     await scrollToBottom(true);
   }
 );
+
 onUnmounted(() => leave?.());
 
 async function handleSend(input) {
@@ -146,15 +175,18 @@ async function handleSend(input) {
   }
 }
 </script>
+
 <style scoped>
- .page {
-   height: calc(100vh - 64px); /* full height minus top app bar (64px) */
- }
- .messages {
-   overflow-y: auto;
- }
- .input-box {
-   border-top: 1px solid #ddd;
-   padding-top: 8px;
- }
+.page {
+  height: calc(100vh - 64px);
+}
+
+.messages {
+  overflow-y: auto;
+}
+
+.input-box {
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+}
 </style>

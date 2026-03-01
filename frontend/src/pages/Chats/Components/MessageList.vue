@@ -1,7 +1,6 @@
 <template>
   <v-card flat>
     <v-card-text class="pa-0">
-      <!-- Put the scrollable area on a plain div (easier ref than a Vuetify component) -->
       <div ref="scroller" class="messages-scroll">
         <v-skeleton-loader
           v-if="loading"
@@ -12,7 +11,7 @@
         />
         <template v-else>
           <div v-if="!messages?.length" class="text-medium-emphasis pa-4">
-            No messages yet — say hi 👋
+            {{ searchQuery ? `No messages match "${searchQuery}"` : 'No messages yet — say hi 👋' }}
           </div>
           <v-list v-else density="comfortable">
             <MessageItem v-for="m in messages" :key="m.id" :msg="m" />
@@ -30,6 +29,7 @@ import MessageItem from './MessageItem.vue';
 const props = defineProps({
   messages: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
+  searchQuery: { type: String, default: '' },
 });
 
 const scroller = ref(null);
@@ -42,7 +42,6 @@ async function scrollToBottom(force = false) {
   const el = scroller.value;
   if (!el) return;
 
-  // Only pin to bottom if user is already near bottom, unless force = true
   if (force || isNearBottom(el)) {
     await nextTick();
     el.scrollTop = el.scrollHeight;
@@ -50,11 +49,9 @@ async function scrollToBottom(force = false) {
 }
 
 onMounted(() => {
-  // Initial scroll (force on first render)
   scrollToBottom(true);
 });
 
-// When messages change, try to keep pinned to bottom
 watch(
   () => props.messages.length,
   async () => {
@@ -64,9 +61,8 @@ watch(
 </script>
 
 <style scoped>
-
 .messages-scroll {
-  height: 100%;         /* let parent define height */
+  height: 100%;
   overflow-y: auto;
   scroll-behavior: smooth;
 }
