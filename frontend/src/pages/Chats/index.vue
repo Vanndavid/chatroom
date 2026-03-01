@@ -38,50 +38,9 @@
       </v-col>
     </v-row>
 
-    <div ref="scroller" class="messages flex-grow-1 min-h-0">
-      <MessageList :messages="store.messages" :loading="store.loading" />
-    </div>
-
-    <div class="input-box">
-      <MessageInput :sending="sending" @send="handleSend" />
-    </div>
-
-    <v-dialog v-model="searchDialog" max-width="700">
-      <v-card>
-        <v-card-title class="d-flex align-center justify-space-between">
-          <span class="text-h6">Search messages</span>
-          <v-btn icon="mdi-close" variant="text" @click="searchDialog = false" />
-        </v-card-title>
-        <v-card-text>
-          <v-text-field
-            v-model="searchQuery"
-            label="Type keyword"
-            prepend-inner-icon="mdi-magnify"
-            clearable
-            autofocus
-          />
-
-          <div class="text-caption text-medium-emphasis mb-2">
-            Found {{ searchResults.length }} result{{ searchResults.length === 1 ? '' : 's' }}
-          </div>
-
-          <v-list v-if="searchResults.length" lines="two" max-height="420" class="overflow-y-auto">
-            <v-list-item v-for="m in searchResults" :key="`search-${m.id}`">
-              <v-list-item-title>{{ m.sender || 'Unknown' }}</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ m.message || m.attachment_name || 'Attachment' }}
-              </v-list-item-subtitle>
-              <template #append>
-                <small class="text-disabled">{{ formatTime(m.created_at) }}</small>
-              </template>
-            </v-list-item>
-          </v-list>
-          <div v-else class="text-medium-emphasis py-4">
-            No messages found.
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+      <div class="input-box">
+        <MessageInput :sending="sending" @send="handleSend" />
+      </div>
   </v-container>
 </template>
 
@@ -99,8 +58,6 @@ const roomCode = route.params.roomCode;
 const store = useChatStore();
 const senderName = ref(store.sender);
 const sending = ref(false);
-const searchDialog = ref(false);
-const searchQuery = ref('');
 const snackbar = inject('snackbar');
 
 const searchResults = computed(() => {
@@ -195,14 +152,11 @@ watch(
 
 onUnmounted(() => leave?.());
 
-async function handleSend(input) {
-  const message = input?.message?.trim() || '';
-  const file = input?.file || null;
-
-  if (!message && !file) return;
+async function handleSend(text) {
+  if (!text?.trim()) return;
   if (sending.value) return;
 
-  const payload = { sender: store.sender, message, file };
+  const payload = { sender: store.sender, message: text.trim() };
 
   try {
     sending.value = true;
@@ -216,16 +170,14 @@ async function handleSend(input) {
 </script>
 
 <style scoped>
-.page {
-  height: calc(100vh - 64px);
-}
-
-.messages {
-  overflow-y: auto;
-}
-
-.input-box {
-  border-top: 1px solid #ddd;
-  padding-top: 8px;
-}
+ .page {
+   height: calc(100vh - 64px); /* full height minus top app bar (64px) */
+ }
+ .messages {
+   overflow-y: auto;
+ }
+ .input-box {
+   border-top: 1px solid #ddd;
+   padding-top: 8px;
+ }
 </style>
