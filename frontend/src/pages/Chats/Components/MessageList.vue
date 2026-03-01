@@ -11,7 +11,7 @@
         />
         <template v-else>
           <div v-if="!messages?.length" class="text-medium-emphasis pa-4">
-            {{ searchQuery ? `No messages match "${searchQuery}"` : 'No messages yet — say hi 👋' }}
+            No messages yet — say hi 👋
           </div>
           <v-list v-else density="comfortable">
             <MessageItem v-for="m in messages" :key="m.id" :msg="m" />
@@ -29,7 +29,6 @@ import MessageItem from './MessageItem.vue';
 const props = defineProps({
   messages: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
-  searchQuery: { type: String, default: '' },
 });
 
 const scroller = ref(null);

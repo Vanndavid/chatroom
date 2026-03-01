@@ -27,32 +27,61 @@
           @click="copyLink"
           :title="`Copy link: ${fullLink}`"
         />
-      </v-col>
-    </v-row>
-
-    <v-row class="mb-2" align="center">
-      <v-col cols="12" sm="8">
-        <v-text-field
-          v-model="searchQuery"
-          label="Search messages"
-          variant="outlined"
-          density="comfortable"
-          prepend-inner-icon="mdi-magnify"
-          clearable
+        <v-btn
+          icon="mdi-magnify"
+          size="small"
+          variant="text"
+          class="ml-1"
+          @click="openSearchDialog"
+          title="Search messages"
         />
-      </v-col>
-      <v-col cols="12" sm="4" class="text-sm-right">
-        <small class="text-medium-emphasis">Showing {{ filteredMessages.length }} / {{ store.messages.length }}</small>
       </v-col>
     </v-row>
 
     <div ref="scroller" class="messages flex-grow-1 min-h-0">
-      <MessageList :messages="filteredMessages" :loading="store.loading" :search-query="searchQuery" />
+      <MessageList :messages="store.messages" :loading="store.loading" />
     </div>
 
     <div class="input-box">
       <MessageInput :sending="sending" @send="handleSend" />
     </div>
+
+    <v-dialog v-model="searchDialog" max-width="700">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <span class="text-h6">Search messages</span>
+          <v-btn icon="mdi-close" variant="text" @click="searchDialog = false" />
+        </v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="searchQuery"
+            label="Type keyword"
+            prepend-inner-icon="mdi-magnify"
+            clearable
+            autofocus
+          />
+
+          <div class="text-caption text-medium-emphasis mb-2">
+            Found {{ searchResults.length }} result{{ searchResults.length === 1 ? '' : 's' }}
+          </div>
+
+          <v-list v-if="searchResults.length" lines="two" max-height="420" class="overflow-y-auto">
+            <v-list-item v-for="m in searchResults" :key="`search-${m.id}`">
+              <v-list-item-title>{{ m.sender || 'Unknown' }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ m.message || m.attachment_name || 'Attachment' }}
+              </v-list-item-subtitle>
+              <template #append>
+                <small class="text-disabled">{{ formatTime(m.created_at) }}</small>
+              </template>
+            </v-list-item>
+          </v-list>
+          <div v-else class="text-medium-emphasis py-4">
+            No messages found.
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -70,12 +99,13 @@ const roomCode = route.params.roomCode;
 const store = useChatStore();
 const senderName = ref(store.sender);
 const sending = ref(false);
+const searchDialog = ref(false);
 const searchQuery = ref('');
 const snackbar = inject('snackbar');
 
-const filteredMessages = computed(() => {
+const searchResults = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
-  if (!query) return store.messages;
+  if (!query) return [];
 
   return store.messages.filter((m) => {
     const messageText = String(m?.message || '').toLowerCase();
@@ -92,6 +122,15 @@ function toast(msg) {
 }
 
 const fullLink = `${window.location.origin}/chat/${roomCode}`;
+
+function formatTime(value) {
+  const d = new Date(value || Date.now());
+  return d.toLocaleTimeString();
+}
+
+function openSearchDialog() {
+  searchDialog.value = true;
+}
 
 function copyCode() {
   navigator.clipboard.writeText(roomCode)
