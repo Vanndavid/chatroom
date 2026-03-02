@@ -35,12 +35,90 @@
           @click="openSearchDialog"
           title="Search messages"
         />
+        <v-btn
+          icon="mdi-folder-open-outline"
+          size="small"
+          variant="text"
+          class="ml-1"
+          @click="openUploadsDialog"
+          title="View uploaded files"
+        />
       </v-col>
     </v-row>
 
-      <div class="input-box">
-        <MessageInput :sending="sending" @send="handleSend" />
-      </div>
+    <div ref="scroller" class="messages flex-grow-1 min-h-0">
+      <MessageList :messages="store.messages" :loading="store.loading" />
+    </div>
+
+    <div class="input-box">
+      <MessageInput :sending="sending" @send="handleSend" />
+    </div>
+
+    <v-dialog v-model="searchDialog" max-width="700">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <span class="text-h6">Search messages</span>
+          <v-btn icon="mdi-close" variant="text" @click="searchDialog = false" />
+        </v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="searchQuery"
+            label="Type keyword"
+            prepend-inner-icon="mdi-magnify"
+            clearable
+            autofocus
+          />
+
+          <div class="text-caption text-medium-emphasis mb-2">
+            Found {{ searchResults.length }} result{{ searchResults.length === 1 ? '' : 's' }}
+          </div>
+
+          <v-list v-if="searchResults.length" lines="two" max-height="420" class="overflow-y-auto">
+            <v-list-item v-for="m in searchResults" :key="`search-${m.id}`">
+              <v-list-item-title>{{ m.sender || 'Unknown' }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ m.message || m.attachment_name || 'Attachment' }}
+              </v-list-item-subtitle>
+              <template #append>
+                <small class="text-disabled">{{ formatTime(m.created_at) }}</small>
+              </template>
+            </v-list-item>
+          </v-list>
+          <div v-else class="text-medium-emphasis py-4">
+            No messages found.
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="uploadsDialog" max-width="760">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <span class="text-h6">Uploaded files</span>
+          <v-btn icon="mdi-close" variant="text" @click="uploadsDialog = false" />
+        </v-card-title>
+        <v-card-text>
+          <div class="text-caption text-medium-emphasis mb-2">
+            {{ uploadedFiles.length }} file{{ uploadedFiles.length === 1 ? '' : 's' }} found
+          </div>
+
+          <v-list v-if="uploadedFiles.length" lines="two" max-height="460" class="overflow-y-auto">
+            <v-list-item v-for="m in uploadedFiles" :key="`upload-${m.id}`" :href="m.attachment_url" target="_blank" rel="noopener noreferrer">
+              <template #prepend>
+                <v-icon>mdi-paperclip</v-icon>
+              </template>
+              <v-list-item-title>{{ m.attachment_name || 'Attached file' }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ m.sender || 'Unknown' }} · {{ prettySize(m.attachment_size) }} · {{ formatTime(m.created_at) }}
+              </v-list-item-subtitle>
+            </v-list-item>
+          </v-list>
+          <div v-else class="text-medium-emphasis py-4">
+            No files uploaded in this room yet.
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -58,6 +136,9 @@ const roomCode = route.params.roomCode;
 const store = useChatStore();
 const senderName = ref(store.sender);
 const sending = ref(false);
+const searchDialog = ref(false);
+const uploadsDialog = ref(false);
+const searchQuery = ref('');
 const snackbar = inject('snackbar');
 
 const searchResults = computed(() => {
@@ -70,6 +151,10 @@ const searchResults = computed(() => {
     const fileText = String(m?.attachment_name || '').toLowerCase();
     return messageText.includes(query) || senderText.includes(query) || fileText.includes(query);
   });
+});
+
+const uploadedFiles = computed(() => {
+  return store.messages.filter((m) => !!m?.attachment_url);
 });
 
 function toast(msg) {
@@ -85,8 +170,19 @@ function formatTime(value) {
   return d.toLocaleTimeString();
 }
 
+function prettySize(bytes = 0) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function openSearchDialog() {
   searchDialog.value = true;
+}
+
+function openUploadsDialog() {
+  uploadsDialog.value = true;
 }
 
 function copyCode() {
@@ -152,11 +248,14 @@ watch(
 
 onUnmounted(() => leave?.());
 
-async function handleSend(text) {
-  if (!text?.trim()) return;
+async function handleSend(input) {
+  const message = input?.message?.trim() || '';
+  const file = input?.file || null;
+
+  if (!message && !file) return;
   if (sending.value) return;
 
-  const payload = { sender: store.sender, message: text.trim() };
+  const payload = { sender: store.sender, message, file };
 
   try {
     sending.value = true;
@@ -170,14 +269,16 @@ async function handleSend(text) {
 </script>
 
 <style scoped>
- .page {
-   height: calc(100vh - 64px); /* full height minus top app bar (64px) */
- }
- .messages {
-   overflow-y: auto;
- }
- .input-box {
-   border-top: 1px solid #ddd;
-   padding-top: 8px;
- }
+.page {
+  height: calc(100vh - 64px);
+}
+
+.messages {
+  overflow-y: auto;
+}
+
+.input-box {
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+}
 </style>
