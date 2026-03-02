@@ -7,44 +7,123 @@
           label="Display name"
           variant="outlined"
           density="comfortable"
-          @change="store.setSender(senderName)"
+          @change="store.setSender(senderName?.trim() || store.sender)"
         />
       </v-col>
       <v-col cols="12" sm="4" class="text-sm-right">
-        
         <v-chip color="primary" class="ma-2">Room: {{ roomCode }}</v-chip>
-           <!-- Copy code button -->
         <v-btn
-        icon="mdi-content-copy"
-        size="small"
-        variant="text"
-        class="ml-2"
-        @click="copyCode"
-        :title="`Copy code: ${roomCode}`"
+          icon="mdi-content-copy"
+          size="small"
+          variant="text"
+          class="ml-2"
+          @click="copyCode"
+          :title="`Copy code: ${roomCode}`"
         />
-
-        <!-- Copy full link button -->
         <v-btn
-        icon="mdi-link-variant"
-        size="small"
-        variant="text"
-        @click="copyLink"
-        :title="`Copy link: ${fullLink}`"
+          icon="mdi-link-variant"
+          size="small"
+          variant="text"
+          @click="copyLink"
+          :title="`Copy link: ${fullLink}`"
+        />
+        <v-btn
+          icon="mdi-magnify"
+          size="small"
+          variant="text"
+          class="ml-1"
+          @click="openSearchDialog"
+          title="Search messages"
+        />
+        <v-btn
+          icon="mdi-folder-open-outline"
+          size="small"
+          variant="text"
+          class="ml-1"
+          @click="openUploadsDialog"
+          title="View uploaded files"
         />
       </v-col>
     </v-row>
-      <div ref="scroller" class="messages flex-grow-1 min-h-0">
-        <MessageList :messages="store.messages" :loading="store.loading" />
-      </div>
 
-      <div class="input-box">
-        <MessageInput @send="handleSend" />
-      </div>
+    <div ref="scroller" class="messages flex-grow-1 min-h-0">
+      <MessageList :messages="store.messages" :loading="store.loading" />
+    </div>
+
+    <div class="input-box">
+      <MessageInput :sending="sending" @send="handleSend" />
+    </div>
+
+    <v-dialog v-model="searchDialog" max-width="700">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <span class="text-h6">Search messages</span>
+          <v-btn icon="mdi-close" variant="text" @click="searchDialog = false" />
+        </v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="searchQuery"
+            label="Type keyword"
+            prepend-inner-icon="mdi-magnify"
+            clearable
+            autofocus
+          />
+
+          <div class="text-caption text-medium-emphasis mb-2">
+            Found {{ searchResults.length }} result{{ searchResults.length === 1 ? '' : 's' }}
+          </div>
+
+          <v-list v-if="searchResults.length" lines="two" max-height="420" class="overflow-y-auto">
+            <v-list-item v-for="m in searchResults" :key="`search-${m.id}`">
+              <v-list-item-title>{{ m.sender || 'Unknown' }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ m.message || m.attachment_name || 'Attachment' }}
+              </v-list-item-subtitle>
+              <template #append>
+                <small class="text-disabled">{{ formatTime(m.created_at) }}</small>
+              </template>
+            </v-list-item>
+          </v-list>
+          <div v-else class="text-medium-emphasis py-4">
+            No messages found.
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="uploadsDialog" max-width="760">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <span class="text-h6">Uploaded files</span>
+          <v-btn icon="mdi-close" variant="text" @click="uploadsDialog = false" />
+        </v-card-title>
+        <v-card-text>
+          <div class="text-caption text-medium-emphasis mb-2">
+            {{ uploadedFiles.length }} file{{ uploadedFiles.length === 1 ? '' : 's' }} found
+          </div>
+
+          <v-list v-if="uploadedFiles.length" lines="two" max-height="460" class="overflow-y-auto">
+            <v-list-item v-for="m in uploadedFiles" :key="`upload-${m.id}`" :href="m.attachment_url" target="_blank" rel="noopener noreferrer">
+              <template #prepend>
+                <v-icon>mdi-paperclip</v-icon>
+              </template>
+              <v-list-item-title>{{ m.attachment_name || 'Attached file' }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ m.sender || 'Unknown' }} · {{ prettySize(m.attachment_size) }} · {{ formatTime(m.created_at) }}
+              </v-list-item-subtitle>
+            </v-list-item>
+          </v-list>
+          <div v-else class="text-medium-emphasis py-4">
+            No files uploaded in this room yet.
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <script setup>
-import { inject, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { computed, inject, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useChatStore } from './store';
 import { fetchMessages, sendMessage } from './api';
@@ -56,14 +135,55 @@ const route = useRoute();
 const roomCode = route.params.roomCode;
 const store = useChatStore();
 const senderName = ref(store.sender);
+const sending = ref(false);
+const searchDialog = ref(false);
+const uploadsDialog = ref(false);
+const searchQuery = ref('');
 const snackbar = inject('snackbar');
+
+const searchResults = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return [];
+
+  return store.messages.filter((m) => {
+    const messageText = String(m?.message || '').toLowerCase();
+    const senderText = String(m?.sender || '').toLowerCase();
+    const fileText = String(m?.attachment_name || '').toLowerCase();
+    return messageText.includes(query) || senderText.includes(query) || fileText.includes(query);
+  });
+});
+
+const uploadedFiles = computed(() => {
+  return store.messages.filter((m) => !!m?.attachment_url);
+});
 
 function toast(msg) {
   if (!snackbar) return;
   snackbar.message = msg;
   snackbar.show = true;
 }
+
 const fullLink = `${window.location.origin}/chat/${roomCode}`;
+
+function formatTime(value) {
+  const d = new Date(value || Date.now());
+  return d.toLocaleTimeString();
+}
+
+function prettySize(bytes = 0) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function openSearchDialog() {
+  searchDialog.value = true;
+}
+
+function openUploadsDialog() {
+  uploadsDialog.value = true;
+}
 
 function copyCode() {
   navigator.clipboard.writeText(roomCode)
@@ -83,19 +203,17 @@ const scroller = ref(null);
 function isNearBottom(el, threshold = 80) {
   return el.scrollHeight - (el.scrollTop + el.clientHeight) <= threshold;
 }
+
 async function scrollToBottom(force = false) {
   const el = scroller.value;
   if (!el) return;
 
-  // Only pin to bottom if user is already near bottom, unless force = true
   if (force || isNearBottom(el)) {
-    console.log(scroller);
     await nextTick();
-    console.log('scrollTop before:', el.scrollTop, 'scrollHeight:', el.scrollHeight);
     el.scrollTop = el.scrollHeight;
-    console.log('scrollTop after:', el.parentNode.scrollTop, 'scrollHeight:', el.scrollHeight);
   }
 }
+
 onMounted(async () => {
   scrollToBottom(true);
   try {
@@ -112,42 +230,55 @@ onMounted(async () => {
       id: e.id ?? crypto.randomUUID?.() ?? Date.now(),
       sender: e.sender,
       message: e.message,
+      attachment_name: e.attachment_name,
+      attachment_mime: e.attachment_mime,
+      attachment_size: e.attachment_size,
+      attachment_url: e.attachment_url,
       created_at: e.created_at ?? new Date().toISOString(),
     });
   });
 });
-// When messages change, try to keep pinned to bottom
+
 watch(
   () => store.messages.length,
   async () => {
     await scrollToBottom(true);
   }
 );
+
 onUnmounted(() => leave?.());
 
-async function handleSend(text) {
-  if (!text?.trim()) return;
-  const payload = { sender: store.sender, message: text.trim() };
+async function handleSend(input) {
+  const message = input?.message?.trim() || '';
+  const file = input?.file || null;
 
-  // Optimistic insert
-//   store.pushMessage({ id: `temp-${Date.now()}`, ...payload, created_at: new Date().toISOString() });
+  if (!message && !file) return;
+  if (sending.value) return;
+
+  const payload = { sender: store.sender, message, file };
 
   try {
+    sending.value = true;
     await sendMessage(roomCode, payload);
   } catch (e) {
     toast('Failed to send message.');
+  } finally {
+    sending.value = false;
   }
 }
 </script>
+
 <style scoped>
- .page {
-   height: calc(100vh - 64px); /* full height minus top app bar (64px) */
- }
- .messages {
-   overflow-y: auto;
- }
- .input-box {
-   border-top: 1px solid #ddd;
-   padding-top: 8px;
- }
+.page {
+  height: calc(100vh - 64px);
+}
+
+.messages {
+  overflow-y: auto;
+}
+
+.input-box {
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+}
 </style>

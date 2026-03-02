@@ -1,4 +1,3 @@
-<!-- src/pages/home.vue -->
 <template>
   <v-container class="py-10" fluid>
     <v-row justify="center" class="mb-8">
@@ -9,7 +8,6 @@
     </v-row>
 
     <v-row justify="center" align="stretch" class="gap-6">
-      <!-- Create card -->
       <v-col cols="12" sm="6" md="4">
         <v-card class="elevation-2 hover:elevation-8 transition-ease-in-out" @click="handleCreate" :disabled="loadingCreate">
           <v-card-item>
@@ -23,7 +21,6 @@
         </v-card>
       </v-col>
 
-      <!-- Join card -->
       <v-col cols="12" sm="6" md="4">
         <v-card class="elevation-2 hover:elevation-8 transition-ease-in-out" @click="joinDialog = true">
           <v-card-item>
@@ -38,7 +35,30 @@
       </v-col>
     </v-row>
 
-    <!-- Join dialog -->
+    <v-row justify="center" class="mt-6" v-if="recentRooms.length">
+      <v-col cols="12" md="8" lg="6">
+        <v-card>
+          <v-card-title class="d-flex align-center justify-space-between">
+            <span class="text-h6">Recent rooms</span>
+            <v-btn variant="text" size="small" color="error" @click="clearRecentRooms">Clear</v-btn>
+          </v-card-title>
+          <v-divider />
+          <v-list lines="two">
+            <v-list-item v-for="room in recentRooms" :key="room.code" @click="quickJoin(room.code)">
+              <template #prepend>
+                <v-icon>mdi-history</v-icon>
+              </template>
+              <v-list-item-title>{{ room.code }}</v-list-item-title>
+              <v-list-item-subtitle>Last used {{ formatTime(room.lastUsedAt) }}</v-list-item-subtitle>
+              <template #append>
+                <v-btn variant="text" size="small" @click.stop="quickJoin(room.code)">Join</v-btn>
+              </template>
+            </v-list-item>
+          </v-list>
+        </v-card>
+      </v-col>
+    </v-row>
+
     <v-dialog v-model="joinDialog" max-width="420">
       <v-card>
         <v-card-title class="text-h6">Join a Room</v-card-title>
@@ -73,6 +93,7 @@ import { useRouter } from 'vue-router';
 import { useChatStore } from './Chats/store';
 import { createRoom, joinRoom, validateRoom } from './Chats/api';
 
+const RECENT_ROOMS_KEY = 'chat_recent_rooms';
 const router = useRouter();
 const snackbar = inject('snackbar');
 const store = useChatStore();
@@ -83,18 +104,61 @@ const sender = ref(store.sender);
 const loadingCreate = ref(false);
 const loadingJoin = ref(false);
 
-function toast(msg){ if (snackbar){ snackbar.message = msg; snackbar.show = true; } }
+function loadRecentRooms() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RECENT_ROOMS_KEY) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((r) => r?.code).slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+const recentRooms = ref(loadRecentRooms());
+
+function toast(msg) {
+  if (snackbar) {
+    snackbar.message = msg;
+    snackbar.show = true;
+  }
+}
+
+function saveRecentRoom(code) {
+  const now = new Date().toISOString();
+  const deduped = recentRooms.value.filter((room) => room.code !== code);
+  const updated = [{ code, lastUsedAt: now }, ...deduped].slice(0, 5);
+  recentRooms.value = updated;
+  localStorage.setItem(RECENT_ROOMS_KEY, JSON.stringify(updated));
+}
+
+function clearRecentRooms() {
+  recentRooms.value = [];
+  localStorage.removeItem(RECENT_ROOMS_KEY);
+}
+
+function formatTime(value) {
+  if (!value) return 'recently';
+  return new Date(value).toLocaleString();
+}
+
+async function quickJoin(code) {
+  roomCode.value = code;
+  await handleJoin();
+}
+
+async function navigateToRoom(code) {
+  saveRecentRoom(code);
+  await router.push(`/chat/${code}`);
+}
 
 async function handleCreate() {
   try {
     loadingCreate.value = true;
-    const room = await createRoom(); // adjust payload if your API needs a name
-    console.log(room);
+    const room = await createRoom();
     if (!room) throw new Error('No room code returned');
-    await router.push(`/chat/${room.code}`);
-  } catch (e) {
-    console.error(e);
-    toast('Failed to create room.',e);
+    await navigateToRoom(room.code);
+  } catch {
+    toast('Failed to create room.');
   } finally {
     loadingCreate.value = false;
   }
@@ -107,17 +171,22 @@ async function handleJoin() {
   try {
     loadingJoin.value = true;
 
-    // Optional validation if your backend supports it
     const ok = await validateRoom(code);
     if (ok === false) return toast('Room not found.');
 
-    // Persist the sender locally and optionally register on server
-    store.setSender(sender.value?.trim() || store.sender);
-    try { await joinRoom(code, store.sender); } catch { /* server join is optional */ }
+    const trimmedSender = sender.value?.trim() || store.sender;
+    sender.value = trimmedSender;
+    store.setSender(trimmedSender);
+
+    try {
+      await joinRoom(code, store.sender);
+    } catch {
+      // server join is optional
+    }
 
     joinDialog.value = false;
-    await router.push(`/chat/${code}`);
-  } catch (e) {
+    await navigateToRoom(code);
+  } catch {
     toast('Failed to join room.');
   } finally {
     loadingJoin.value = false;
@@ -126,6 +195,11 @@ async function handleJoin() {
 </script>
 
 <style scoped>
-.hover\:elevation-8:hover { box-shadow: var(--v-shadow-8); }
-.transition-ease-in-out { transition: box-shadow .2s ease-in-out, transform .2s ease-in-out; }
+.hover\:elevation-8:hover {
+  box-shadow: var(--v-shadow-8);
+}
+
+.transition-ease-in-out {
+  transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
 </style>

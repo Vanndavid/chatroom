@@ -1,7 +1,6 @@
 <template>
   <v-card flat>
     <v-card-text class="pa-0">
-      <!-- Put the scrollable area on a plain div (easier ref than a Vuetify component) -->
       <div ref="scroller" class="messages-scroll">
         <v-skeleton-loader
           v-if="loading"
@@ -42,7 +41,6 @@ async function scrollToBottom(force = false) {
   const el = scroller.value;
   if (!el) return;
 
-  // Only pin to bottom if user is already near bottom, unless force = true
   if (force || isNearBottom(el)) {
     await nextTick();
     el.scrollTop = el.scrollHeight;
@@ -50,11 +48,9 @@ async function scrollToBottom(force = false) {
 }
 
 onMounted(() => {
-  // Initial scroll (force on first render)
   scrollToBottom(true);
 });
 
-// When messages change, try to keep pinned to bottom
 watch(
   () => props.messages.length,
   async () => {
@@ -64,9 +60,8 @@ watch(
 </script>
 
 <style scoped>
-
 .messages-scroll {
-  height: 100%;         /* let parent define height */
+  height: 100%;
   overflow-y: auto;
   scroll-behavior: smooth;
 }

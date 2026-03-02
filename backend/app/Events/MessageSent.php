@@ -38,9 +38,13 @@ class MessageSent implements ShouldBroadcastNow
     public function broadcastWith()
     {
         return [
-            'id'      => $this->message->id,
-            'sender'  => $this->message->sender,
+            'id' => $this->message->id,
+            'sender' => $this->message->sender,
             'message' => $this->message->message,
+            'attachment_name' => $this->message->attachment_name,
+            'attachment_mime' => $this->message->attachment_mime,
+            'attachment_size' => $this->message->attachment_size,
+            'attachment_url' => $this->message->attachment_url,
             'created_at' => $this->message->created_at->toDateTimeString(),
         ];
     }

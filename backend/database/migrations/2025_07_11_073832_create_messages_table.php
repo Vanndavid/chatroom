@@ -15,7 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('chat_id')->constrained()->onDelete('cascade');
             $table->string('sender')->nullable(); // optional username
-            $table->text('message');
+            $table->text('message')->nullable();
+            $table->string('attachment_path')->nullable();
+            $table->string('attachment_name')->nullable();
+            $table->string('attachment_mime')->nullable();
+            $table->unsignedBigInteger('attachment_size')->nullable();
             $table->timestamps();
         });
     }
